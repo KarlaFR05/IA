@@ -1,4 +1,5 @@
 import time
+import heapq
 
 # FUNCIÓN PARA CARGAR EL LABERINTO DESDE ARCHIVO
 def cargar_laberinto(nombre_archivo):
@@ -16,7 +17,7 @@ def cargar_laberinto(nombre_archivo):
 
 # CARGAR EL LABERINTO
 #laberinto = cargar_laberinto("laberinto_comparacion_BFS_DFS_UCS.txt")
-laberinto = cargar_laberinto("laberinto.txt")
+laberinto = cargar_laberinto(r"laberinto.txt")
 
 # FUNCIÓN PARA OBTENER EL COSTO DE UNA CELDA
 def obtener_costo(celda):
@@ -82,7 +83,11 @@ def bfs(laberinto, inicio, meta):
     
     # Calcular métricas
     longitud_ruta = len(camino) - 1 if camino else 0
-    costo_total = sum(obtener_costo(laberinto[f][c]) for f, c in camino)
+    ##############################costo_total = sum(obtener_costo(laberinto[f][c]) for f, c in camino)
+    costo_total = sum(
+    obtener_costo(laberinto[f][c])
+    for f, c in camino[1:]
+    )  # Excluye el nodo inicial 'S' del costo total
     
     return {
         "camino": camino,
@@ -135,7 +140,108 @@ def dfs(laberinto, inicio, meta):
     # Calcular métricas
     longitud_ruta = len(camino) - 1 if camino else 0
     costo_total = sum(obtener_costo(laberinto[f][c]) for f, c in camino)
+    return {
+            "camino": camino,
+            "longitud_pasos": longitud_ruta,
+            "costo_total": costo_total,
+            "nodos_visitados": len(visitados),
+            "tiempo_ms": round(tiempo_ms, 4)
+        }
+
     
+
+#UCS (BÚSQUEDA DE COSTO UNIFORME)
+def ucs(laberinto, inicio, meta):
+    tiempo_inicio = time.time()
+
+    # Cola de prioridad
+    cola = []
+    heapq.heappush(cola, (0, inicio))
+
+    # Guarda el menor costo conocido para llegar a cada nodo
+    costos = {inicio: 0}
+
+    # Guarda de dónde venimos para reconstruir el camino
+    padres = {inicio: None}
+
+    # Nodos que ya fueron procesados
+    visitados = set()
+
+    while cola:
+
+        # Extraer el nodo con menor costo
+        costo_actual, actual = heapq.heappop(cola)
+
+        # Si ya procesamos este nodo, lo ignoramos
+        if actual in visitados:
+            continue
+
+        visitados.add(actual)
+
+        # Si llegamos a la meta, terminamos
+        if actual == meta:
+            break
+
+        fila, columna = actual
+
+        # Izquierda, Abajo, Derecha, Arriba
+        direcciones = [(0, -1), (1, 0), (0, 1), (-1, 0)]
+
+        for df, dc in direcciones:
+
+            nueva_fila = fila + df
+            nueva_columna = columna + dc
+
+            # Verificar que esté dentro del laberinto
+            if 0 <= nueva_fila < len(laberinto) and 0 <= nueva_columna < len(laberinto[0]):
+
+                # Verificar que no sea una pared
+                if laberinto[nueva_fila][nueva_columna] != '#':
+
+                    vecino = (nueva_fila, nueva_columna)
+
+                    # Costo de llegar al vecino
+                    nuevo_costo = costo_actual + obtener_costo(
+                        laberinto[nueva_fila][nueva_columna]
+                    )
+
+                    # Si encontramos una ruta más barata
+                    if vecino not in costos or nuevo_costo < costos[vecino]:
+
+                        costos[vecino] = nuevo_costo
+                        padres[vecino] = actual
+
+                        # Agregar a la cola de prioridad
+                        heapq.heappush(
+                            cola,
+                            (nuevo_costo, vecino)
+                        )
+
+    tiempo_fin = time.time()
+    tiempo_ms = (tiempo_fin - tiempo_inicio) * 1000
+
+    # Reconstruir camino
+    camino = []
+
+    if meta in padres:
+
+        actual = meta
+
+        while actual is not None:
+            camino.append(actual)
+            actual = padres[actual]
+
+        camino.reverse()
+
+    # Número de pasos
+    longitud_ruta = len(camino) - 1 if camino else 0
+
+    # Costo total
+    costo_total = sum(
+    obtener_costo(laberinto[f][c])
+    for f, c in camino[1:]
+    )  # Excluye el nodo inicial 'S' del costo total
+
     return {
         "camino": camino,
         "longitud_pasos": longitud_ruta,
@@ -143,7 +249,6 @@ def dfs(laberinto, inicio, meta):
         "nodos_visitados": len(visitados),
         "tiempo_ms": round(tiempo_ms, 4)
     }
-
 
 # FUNCIÓN PARA RESULTADOS
 def mostrar_resultados(nombre_algoritmo, resultados):
@@ -180,8 +285,10 @@ if __name__ == "__main__":
             mostrar_resultados("BFS", resultados)
             
         elif opcion == 3:
-            print("\nEjecutando UCS (Búsqueda de Costo Uniforme)")
-            
+            print("\nEjecutando UCS (Búsqueda de Costo Uniforme)...")
+            resultados = ucs(laberinto, inicio, meta)
+            mostrar_resultados("UCS", resultados)
+
         elif opcion == 4:
             print("\nSaliendo")
             
