@@ -17,7 +17,7 @@ def cargar_laberinto(nombre_archivo):
 
 # CARGAR EL LABERINTO
 #laberinto = cargar_laberinto("laberinto_comparacion_BFS_DFS_UCS.txt")
-laberinto = cargar_laberinto(r"laberinto_c.txt")
+laberinto = cargar_laberinto(r"laberinto.txt")
 
 # FUNCIÓN PARA OBTENER EL COSTO DE UNA CELDA
 def obtener_costo(celda):
