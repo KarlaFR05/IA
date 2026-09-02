@@ -92,6 +92,59 @@ def bfs(laberinto, inicio, meta):
         "tiempo_ms": round(tiempo_ms, 4)
     }
 
+def dfs(laberinto, inicio, meta):
+    tiempo_inicio = time.time()
+    
+    pila = [inicio]
+    visitados = set()
+    visitados.add(inicio)
+    padres = {inicio: None}
+    
+    while pila:
+        actual = pila.pop()  # LIFO: saca el último
+        
+        if actual == meta:
+            break
+        
+        fila, columna = actual
+        # Orden: Izquierda, Abajo, Derecha, Arriba
+        direcciones = [(0, -1), (1, 0), (0, 1), (-1, 0)]
+        
+        for df, dc in direcciones:
+            nueva_fila, nueva_columna = fila + df, columna + dc
+            
+            if 0 <= nueva_fila < len(laberinto) and 0 <= nueva_columna < len(laberinto[0]):
+                if laberinto[nueva_fila][nueva_columna] != '#' and (nueva_fila, nueva_columna) not in visitados:
+                    vecino = (nueva_fila, nueva_columna)
+                    visitados.add(vecino)
+                    padres[vecino] = actual
+                    pila.append(vecino)
+    
+    tiempo_fin = time.time()
+    tiempo_ms = (tiempo_fin - tiempo_inicio) * 1000
+    
+    # Reconstruir camino
+    camino = []
+    actual = meta
+    if meta in padres:
+        while actual is not None:
+            camino.append(actual)
+            actual = padres[actual]
+        camino.reverse()
+    
+    # Calcular métricas
+    longitud_ruta = len(camino) - 1 if camino else 0
+    costo_total = sum(obtener_costo(laberinto[f][c]) for f, c in camino)
+    
+    return {
+        "camino": camino,
+        "longitud_pasos": longitud_ruta,
+        "costo_total": costo_total,
+        "nodos_visitados": len(visitados),
+        "tiempo_ms": round(tiempo_ms, 4)
+    }
+
+
 # FUNCIÓN PARA RESULTADOS
 def mostrar_resultados(nombre_algoritmo, resultados):
     """Muestra las métricas de forma bonita y uniforme."""
@@ -118,6 +171,8 @@ if __name__ == "__main__":
         
         if opcion == 1:
             print("\nEjecutando DFS (Búsqueda en Profundidad)...")
+            resultados = dfs(laberinto, inicio, meta)
+            mostrar_resultados("DFS", resultados)
             
         elif opcion == 2:
             print("\nEjecutando BFS (Búsqueda en Anchura)...")
