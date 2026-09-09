@@ -16,8 +16,8 @@ def cargar_laberinto(nombre_archivo):
     return laberinto
 
 # CARGAR EL LABERINTO
-#laberinto = cargar_laberinto("laberinto_comparacion_BFS_DFS_UCS.txt")
-laberinto = cargar_laberinto(r"laberinto.txt")
+laberinto = cargar_laberinto("laberinto_c.txt")
+#laberinto = cargar_laberinto(r"laberinto.txt")
 
 # FUNCIÓN PARA OBTENER EL COSTO DE UNA CELDA
 def obtener_costo(celda):
@@ -171,35 +171,24 @@ def ucs(laberinto, inicio, meta):
 
         # Extraer el nodo con menor costo
         costo_actual, actual = heapq.heappop(cola)
-
         # Si ya procesamos este nodo, lo ignoramos
         if actual in visitados:
             continue
-
         visitados.add(actual)
-
         # Si llegamos a la meta, terminamos
         if actual == meta:
             break
-
         fila, columna = actual
-
         # Izquierda, Abajo, Derecha, Arriba
         direcciones = [(0, -1), (1, 0), (0, 1), (-1, 0)]
-
         for df, dc in direcciones:
-
             nueva_fila = fila + df
             nueva_columna = columna + dc
-
             # Verificar que esté dentro del laberinto
             if 0 <= nueva_fila < len(laberinto) and 0 <= nueva_columna < len(laberinto[0]):
-
                 # Verificar que no sea una pared
                 if laberinto[nueva_fila][nueva_columna] != '#':
-
                     vecino = (nueva_fila, nueva_columna)
-
                     # Costo de llegar al vecino
                     nuevo_costo = costo_actual + obtener_costo(
                         laberinto[nueva_fila][nueva_columna]
