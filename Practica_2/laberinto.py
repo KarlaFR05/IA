@@ -89,17 +89,17 @@ def astar(grid, inicio, meta, heuristica, guardar_pasos=False):
     else:
         h_func = euclidiana
 
-    frontera = []
+    frontera = []#LO IMPLEMENTAMOS COMO UNA COLA DE PRIORIDAD PARA SACAR EL MENOR 
     contador = 0
-    heapq.heappush(frontera, (h_func(inicio, meta), contador, inicio))
+    heapq.heappush(frontera, (h_func(inicio, meta), contador, inicio)) #meter
 
     g = {inicio: 0}
-    padres = {}
-    visitados = set()
+    padres = {} 
+    visitados = set() #CERRADO, YA SABEMOS EL COSTO MINIMO PARA LLEGAR A ELLOS
     pasos = []  # para la visualizacion
 
     while frontera:
-        f_actual, _, actual = heapq.heappop(frontera)
+        f_actual, _, actual = heapq.heappop(frontera)#sacar
 
         if actual in visitados:
             continue
@@ -110,11 +110,11 @@ def astar(grid, inicio, meta, heuristica, guardar_pasos=False):
             parcial = []
             curr = actual
             while curr in padres:
-                parcial.append(curr)
+                parcial.append(curr)#meter 
                 curr = padres[curr]
-            parcial.append(inicio)
+            parcial.append(inicio)#meter
             parcial.reverse()
-            pasos.append((set(visitados), set(p for _,_,p in frontera), parcial))
+            pasos.append((set(visitados), set(p for _,_,p in frontera), parcial))#meter 
 
         if actual == meta:
             break
@@ -126,7 +126,7 @@ def astar(grid, inicio, meta, heuristica, guardar_pasos=False):
             nuevo_g = g[actual] + costo
             if vec not in g or nuevo_g < g[vec]:
                 g[vec] = nuevo_g
-                padres[vec] = actual
+                padres[vec] = actual#RUTA
                 contador += 1
                 f = nuevo_g + h_func(vec, meta)
                 heapq.heappush(frontera, (f, contador, vec))

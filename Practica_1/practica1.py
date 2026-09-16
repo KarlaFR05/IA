@@ -16,7 +16,7 @@ def cargar_laberinto(nombre_archivo):
     return laberinto
 
 # CARGAR EL LABERINTO
-laberinto = cargar_laberinto("laberinto_c.txt")
+laberinto = cargar_laberinto(r"laberinto_c.txt")
 #laberinto = cargar_laberinto(r"laberinto.txt")
 
 # FUNCIÓN PARA OBTENER EL COSTO DE UNA CELDA
