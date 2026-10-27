@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
-
+import os
+os.makedirs("imagenes", exist_ok=True)
 # ------------------------------------------------------------
 # PASO 1: Cargar y preparar los datos
 # ------------------------------------------------------------
@@ -126,11 +127,13 @@ red = MLP(n_entrada=57, n_oculta=10, n_salida=1, tasa_aprendizaje=0.05)
 errores = entrenar(red, X_train, y_train, epocas=1000)
 
 # Graficar el error por épocas
+plt.figure()
 plt.plot(errores)
 plt.xlabel("Época")
 plt.ylabel("Error (MSE)")
 plt.title("Error de entrenamiento por épocas (lr=0.05)")
 plt.grid(True)
+plt.savefig("Practica_5/graficas/paso3_error_lr0.05.png", dpi=150, bbox_inches="tight")   # guardar ANTES de show
 plt.show()
 
 # Precisión rápida (accuracy) para ver si aprendió
@@ -138,3 +141,7 @@ pred_train = red.predecir(X_train)
 pred_test = red.predecir(X_test)
 print("Exactitud en entrenamiento:", np.mean(pred_train == y_train))
 print("Exactitud en prueba:", np.mean(pred_test == y_test))
+
+
+
+
