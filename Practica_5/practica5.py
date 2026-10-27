@@ -145,3 +145,47 @@ print("Exactitud en prueba:", np.mean(pred_test == y_test))
 
 
 
+# ------------------------------------------------------------
+# PASO 4: Experimentos con tasas de aprendizaje y épocas
+# ------------------------------------------------------------
+
+tasas = [0.001, 0.01, 0.05, 0.5, 1.0]
+lista_epocas = [500, 1000, 2000]
+
+resultados = []          # (lr, épocas, error final, exactitud train, exactitud test)
+curvas = {}              # curva de error de cada experimento
+
+for lr in tasas:
+    for ep in lista_epocas:
+        np.random.seed(0)    # misma inicialización para comparar justo
+        red_exp = MLP(57, 10, 1, lr)
+
+        errs = []
+        for _ in range(ep):
+            salida = red_exp.forward(X_train)
+            errs.append(mse(y_train, salida))
+            red_exp.backward(X_train, y_train)
+
+        acc_train = np.mean(red_exp.predecir(X_train) == y_train)
+        acc_test = np.mean(red_exp.predecir(X_test) == y_test)
+        resultados.append((lr, ep, errs[-1], acc_train, acc_test))
+        curvas[(lr, ep)] = errs
+
+# Tabla de resultados
+print(f"{'lr':>7} {'épocas':>7} {'error':>8} {'acc_train':>10} {'acc_test':>9}")
+for lr, ep, err, at, ae in resultados:
+    print(f"{lr:>7} {ep:>7} {err:>8.4f} {at:>10.4f} {ae:>9.4f}")
+
+# Una gráfica (y una imagen) por cada cantidad de épocas
+for ep in lista_epocas:
+    plt.figure()
+    for lr in tasas:
+        plt.plot(curvas[(lr, ep)], label=f"lr={lr}")
+    plt.xlabel("Época")
+    plt.ylabel("Error (MSE)")
+    plt.title(f"Error de entrenamiento por épocas ({ep} épocas)")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(f"Practica_5/graficas/paso4_error_{ep}_epocas.png", dpi=150, bbox_inches="tight")
+
+plt.show()   # muestra las 3 ventanas al final
