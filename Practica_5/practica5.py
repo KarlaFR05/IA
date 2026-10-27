@@ -96,3 +96,45 @@ red = MLP(n_entrada=57, n_oculta=10, n_salida=1, tasa_aprendizaje=0.05)
 salida = red.forward(X_train)
 print("Forma de la salida:", salida.shape)
 print("Primeras 5 salidas:", salida[:5].ravel())
+
+
+
+# ------------------------------------------------------------
+# PASO 3: Entrenar y graficar el error por épocas
+# ------------------------------------------------------------
+
+def mse(y_real, y_pred):
+    """Error cuadrático medio"""
+    return np.mean((y_real - y_pred) ** 2)
+
+def entrenar(red, X, y, epocas):
+    """Entrena la red y devuelve la lista de errores por época"""
+    errores = []
+    for epoca in range(epocas):
+        salida = red.forward(X)          # 1. propagación hacia adelante
+        error = mse(y, salida)           # 2. calcular el error
+        errores.append(error)            # 3. guardarlo
+        red.backward(X, y)               # 4. retropropagación y ajuste de pesos
+
+        if epoca % 100 == 0:             # mostrar progreso cada 100 épocas
+            print(f"Época {epoca}, error: {error:.4f}")
+    return errores
+
+# Crear la red y entrenarla
+np.random.seed(0)
+red = MLP(n_entrada=57, n_oculta=10, n_salida=1, tasa_aprendizaje=0.05)
+errores = entrenar(red, X_train, y_train, epocas=1000)
+
+# Graficar el error por épocas
+plt.plot(errores)
+plt.xlabel("Época")
+plt.ylabel("Error (MSE)")
+plt.title("Error de entrenamiento por épocas (lr=0.05)")
+plt.grid(True)
+plt.show()
+
+# Precisión rápida (accuracy) para ver si aprendió
+pred_train = red.predecir(X_train)
+pred_test = red.predecir(X_test)
+print("Exactitud en entrenamiento:", np.mean(pred_train == y_train))
+print("Exactitud en prueba:", np.mean(pred_test == y_test))
