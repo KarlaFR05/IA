@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 # ------------------------------------------------------------
 
 # 1. Cargar el dataset (separado por comas, sin encabezados)
-datos = np.loadtxt("IA/Practica_5/spambase/spambase.data", delimiter=",")
+datos = np.loadtxt("Practica_5/spambase/spambase.data", delimiter=",")
 
 # 2. Separar entradas (X) y salida (y)
 X = datos[:, :57]          # 57 características
