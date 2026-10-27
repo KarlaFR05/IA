@@ -1,0 +1,7 @@
+laberinto,metodo,longitud_ruta,costo_total,nodos_visitados,tiempo_ms
+Laberinto 1 (Original),A* manhattan,17,24,25,0.294
+Laberinto 1 (Original),A* euclidiana,17,24,35,0.243
+Laberinto 1 (Original),UCS,17,24,75,0.159
+Laberinto 2 (Más difícil),A* manhattan,33,40,44,0.234
+Laberinto 2 (Más difícil),A* euclidiana,33,40,44,0.338
+Laberinto 2 (Más difícil),UCS,33,40,80,0.189
