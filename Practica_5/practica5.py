@@ -189,3 +189,67 @@ for ep in lista_epocas:
     plt.savefig(f"Practica_5/graficas/paso4_error_{ep}_epocas.png", dpi=150, bbox_inches="tight")
 
 plt.show()   # muestra las 3 ventanas al final
+
+
+
+# ------------------------------------------------------------
+# PASO 5: Métricas y matriz de confusión (mejor configuración)
+# ------------------------------------------------------------
+
+# 1. Entrenar la mejor red
+np.random.seed(0)
+mejor_red = MLP(57, 10, 1, 1.0)
+errores_mejor = entrenar(mejor_red, X_train, y_train, epocas=2000)
+
+# 2. Predicciones sobre el conjunto de PRUEBA
+pred = mejor_red.predecir(X_test)
+
+# 3. Matriz de confusión calculada a mano
+VP = np.sum((pred == 1) & (y_test == 1))   # spam detectado como spam
+VN = np.sum((pred == 0) & (y_test == 0))   # no-spam detectado como no-spam
+FP = np.sum((pred == 1) & (y_test == 0))   # no-spam clasificado como spam
+FN = np.sum((pred == 0) & (y_test == 1))   # spam que se coló como no-spam
+
+matriz = np.array([[VN, FP],
+                   [FN, VP]])
+
+# 4. Métricas
+exactitud = (VP + VN) / (VP + VN + FP + FN)
+precision = VP / (VP + FP)
+recuerdo = VP / (VP + FN)
+f1 = 2 * precision * recuerdo / (precision + recuerdo)
+
+print("\nMatriz de confusión (filas = real, columnas = predicho):")
+print(matriz)
+print(f"VP={VP}  VN={VN}  FP={FP}  FN={FN}")
+print(f"Exactitud: {exactitud:.4f}")
+print(f"Precisión: {precision:.4f}")
+print(f"Recuerdo:  {recuerdo:.4f}")
+print(f"Medida F:  {f1:.4f}")
+
+# 5. Graficar la matriz de confusión
+plt.figure()
+plt.imshow(matriz, cmap="Blues")
+plt.title("Matriz de confusión (lr=1.0, 2000 épocas)")
+plt.colorbar()
+plt.xticks([0, 1], ["NO-SPAM", "SPAM"])
+plt.yticks([0, 1], ["NO-SPAM", "SPAM"])
+plt.xlabel("Predicho")
+plt.ylabel("Real")
+for i in range(2):
+    for j in range(2):
+        plt.text(j, i, matriz[i, j], ha="center", va="center",
+                 color="white" if matriz[i, j] > matriz.max() / 2 else "black",
+                 fontsize=14)
+plt.savefig("Practica_5/graficas/paso5_matriz_confusion.png", dpi=150, bbox_inches="tight")
+
+# 6. Gráfica del error por épocas de la mejor red
+plt.figure()
+plt.plot(errores_mejor)
+plt.xlabel("Época")
+plt.ylabel("Error (MSE)")
+plt.title("Error de entrenamiento por épocas (mejor red: lr=1.0)")
+plt.grid(True)
+plt.savefig("Practica_5/graficas/paso5_error_mejor_red.png", dpi=150, bbox_inches="tight")
+
+plt.show()
