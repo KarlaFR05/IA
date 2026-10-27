@@ -39,3 +39,60 @@ print("Entrenamiento:", X_train.shape)
 print("Prueba:", X_test.shape)
 
 
+
+
+# ------------------------------------------------------------
+# PASO 2: Implementar el MLP
+# ------------------------------------------------------------
+
+def sigmoide(z):
+    return 1 / (1 + np.exp(-z))
+
+class MLP:
+    def __init__(self, n_entrada, n_oculta, n_salida, tasa_aprendizaje):
+        self.lr = tasa_aprendizaje
+        # Pesos pequeños aleatorios y sesgos en cero
+        self.W1 = np.random.randn(n_entrada, n_oculta) * 0.1
+        self.b1 = np.zeros((1, n_oculta))
+        self.W2 = np.random.randn(n_oculta, n_salida) * 0.1
+        self.b2 = np.zeros((1, n_salida))
+
+    def forward(self, X):
+        """Propagación hacia adelante"""
+        self.z1 = X @ self.W1 + self.b1
+        self.a1 = sigmoide(self.z1)          # salida capa oculta
+        self.z2 = self.a1 @ self.W2 + self.b2
+        self.a2 = sigmoide(self.z2)          # salida final
+        return self.a2
+
+    def backward(self, X, y):
+        """Retropropagación + actualización de pesos"""
+        m = X.shape[0]   # número de ejemplos
+
+        # Error en la salida (derivada del MSE * derivada de la sigmoide)
+        delta2 = (self.a2 - y) * self.a2 * (1 - self.a2)
+
+        # Error propagado a la capa oculta
+        delta1 = (delta2 @ self.W2.T) * self.a1 * (1 - self.a1)
+
+        # Gradientes (promediados sobre los ejemplos)
+        dW2 = self.a1.T @ delta2 / m
+        db2 = delta2.sum(axis=0, keepdims=True) / m
+        dW1 = X.T @ delta1 / m
+        db1 = delta1.sum(axis=0, keepdims=True) / m
+
+        # Descenso de gradiente
+        self.W2 -= self.lr * dW2
+        self.b2 -= self.lr * db2
+        self.W1 -= self.lr * dW1
+        self.b1 -= self.lr * db1
+
+    def predecir(self, X):
+        """Devuelve 1 (SPAM) si la salida >= 0.5, si no 0"""
+        return (self.forward(X) >= 0.5).astype(int)
+
+# Prueba rápida: ¿funciona el forward?
+red = MLP(n_entrada=57, n_oculta=10, n_salida=1, tasa_aprendizaje=0.05)
+salida = red.forward(X_train)
+print("Forma de la salida:", salida.shape)
+print("Primeras 5 salidas:", salida[:5].ravel())
