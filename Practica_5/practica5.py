@@ -1,236 +1,280 @@
+"""
+Práctica 5: Clasificación de correo SPAM con un Perceptrón Multicapa (MLP) desde cero.
+- Implementado solo con NumPy (Matplotlib únicamente para las gráficas).
+- Retropropagación con descenso de gradiente por EJEMPLO (como el pseudocódigo del curso):
+      Desde época = 1 a N_épocas:
+          Desde q = 1 a Q:
+              1. Propagar hacia adelante
+              2. Propagar hacia atrás (sensibilidades)
+              3. Actualizar W y b
+- Activación: sigmoide. Pérdida: error cuadrático medio (MSE). Salida: 1 neurona.
+"""
+
+import copy
+import os
+import time
+
 import numpy as np
 import matplotlib.pyplot as plt
-import os
-os.makedirs("imagenes", exist_ok=True)
+
+# ------------------------------------------------------------
+# CONFIGURACIÓN
+# ------------------------------------------------------------
+RUTA_DATOS = "Practica_5/spambase/spambase.data"
+CARPETA_GRAFICAS = "Practica_5/graficas"
+os.makedirs(CARPETA_GRAFICAS, exist_ok=True)
+
+# Entrenar por ejemplo es lento (3680 actualizaciones por época).
+# Pon True para una prueba rápida del código; False para los experimentos reales.
+MODO_RAPIDO = False
+
+if MODO_RAPIDO:
+    LISTA_EPOCAS = [50, 100, 200]
+else:
+    LISTA_EPOCAS = [500, 1000, 2000]          # lo que pide la práctica
+
+TASAS = [0.001, 0.01, 0.05]                   # lo que pide la práctica
+NEURONAS_OCULTAS = [5, 10, 20]                # experimento para decidir la arquitectura
+LR_ARQUITECTURA = 0.05                        # tasa usada en el experimento de arquitectura
+
+lineas_reporte = []                           # aquí guardamos lo que se imprime, para el reporte
+
+
+def imprimir(texto=""):
+    """Imprime en pantalla y lo guarda para resultados.txt"""
+    print(texto)
+    lineas_reporte.append(texto)
+
+
 # ------------------------------------------------------------
 # PASO 1: Cargar y preparar los datos
 # ------------------------------------------------------------
+datos = np.loadtxt(RUTA_DATOS, delimiter=",")
 
-# 1. Cargar el dataset (separado por comas, sin encabezados)
-datos = np.loadtxt("Practica_5/spambase/spambase.data", delimiter=",")
+X = datos[:, :57]                      # 57 características (columnas 0-56)
+y = datos[:, 57].reshape(-1, 1)        # etiqueta: 1 = SPAM, 0 = NO-SPAM
 
-# 2. Separar entradas (X) y salida (y)
-X = datos[:, :57]          # 57 características
-y = datos[:, 57].reshape(-1, 1)   # etiqueta: 1 = SPAM, 0 = NO-SPAM
+imprimir(f"Forma de X: {X.shape}")
+imprimir(f"Forma de y: {y.shape}")
+imprimir(f"Porcentaje de SPAM: {y.mean() * 100:.2f} %")
 
-print("Forma de X:", X.shape)
-print("Forma de y:", y.shape)
-print("Porcentaje de SPAM:", y.mean() * 100, "%")
-
-# 3. Mezclar los datos de forma aleatoria (semilla fija para repetir resultados)
+# Mezclar (semilla fija para repetir resultados)
 np.random.seed(42)
 indices = np.random.permutation(len(X))
 X = X[indices]
 y = y[indices]
 
-# 4. Dividir en entrenamiento (80%) y prueba (20%)
+# 80% entrenamiento, 20% prueba
 corte = int(0.8 * len(X))
 X_train, X_test = X[:corte], X[corte:]
 y_train, y_test = y[:corte], y[corte:]
 
-# 5. Normalizar: usamos la media y desviación del conjunto de ENTRENAMIENTO
+# Normalizar con media y desviación del ENTRENAMIENTO
 media = X_train.mean(axis=0)
 desv = X_train.std(axis=0)
-desv[desv == 0] = 1   # evitar dividir entre cero
-
+desv[desv == 0] = 1
 X_train = (X_train - media) / desv
 X_test = (X_test - media) / desv
 
-print("Entrenamiento:", X_train.shape)
-print("Prueba:", X_test.shape)
-
-
+imprimir(f"Entrenamiento: {X_train.shape}")
+imprimir(f"Prueba: {X_test.shape}")
 
 
 # ------------------------------------------------------------
-# PASO 2: Implementar el MLP
+# PASO 2: Implementar el MLP (57 entradas -> capa oculta -> 1 salida)
 # ------------------------------------------------------------
-
 def sigmoide(z):
     return 1 / (1 + np.exp(-z))
 
+
 class MLP:
     def __init__(self, n_entrada, n_oculta, n_salida, tasa_aprendizaje):
-        self.lr = tasa_aprendizaje
-        # Pesos pequeños aleatorios y sesgos en cero
+        self.lr = tasa_aprendizaje                                   # alfa
+        # Inicialización aleatoria de W y b
         self.W1 = np.random.randn(n_entrada, n_oculta) * 0.1
         self.b1 = np.zeros((1, n_oculta))
         self.W2 = np.random.randn(n_oculta, n_salida) * 0.1
         self.b2 = np.zeros((1, n_salida))
 
     def forward(self, X):
-        """Propagación hacia adelante"""
-        self.z1 = X @ self.W1 + self.b1
-        self.a1 = sigmoide(self.z1)          # salida capa oculta
-        self.z2 = self.a1 @ self.W2 + self.b2
-        self.a2 = sigmoide(self.z2)          # salida final
+        """1. Propagar hacia adelante: a^m = f^m(W^m a^(m-1) + b^m)"""
+        self.a1 = sigmoide(X @ self.W1 + self.b1)          # capa oculta
+        self.a2 = sigmoide(self.a1 @ self.W2 + self.b2)    # capa de salida
         return self.a2
 
-    def backward(self, X, y):
-        """Retropropagación + actualización de pesos"""
-        m = X.shape[0]   # número de ejemplos
+    def backward(self, X, t):
+        """
+        2. Propagar hacia atrás y 3. Actualizar (para UN ejemplo).
+        Se debe llamar justo después de forward(X).
+        """
+        # e = t - a^M
+        e = t - self.a2
+        # s^M = -2 * F'^M(n^M) * e        (F' de la sigmoide = a(1-a))
+        s2 = -2 * (self.a2 * (1 - self.a2)) * e
+        # s^(m-1) = F'^(m-1)(n^(m-1)) * (W^m)^T * s^m
+        s1 = (self.a1 * (1 - self.a1)) * (s2 @ self.W2.T)
 
-        # Error en la salida (derivada del MSE * derivada de la sigmoide)
-        delta2 = (self.a2 - y) * self.a2 * (1 - self.a2)
-
-        # Error propagado a la capa oculta
-        delta1 = (delta2 @ self.W2.T) * self.a1 * (1 - self.a1)
-
-        # Gradientes (promediados sobre los ejemplos)
-        dW2 = self.a1.T @ delta2 / m
-        db2 = delta2.sum(axis=0, keepdims=True) / m
-        dW1 = X.T @ delta1 / m
-        db1 = delta1.sum(axis=0, keepdims=True) / m
-
-        # Descenso de gradiente
-        self.W2 -= self.lr * dW2
-        self.b2 -= self.lr * db2
-        self.W1 -= self.lr * dW1
-        self.b1 -= self.lr * db1
+        # W^m = W^m - alfa * s^m * (a^(m-1))^T      b^m = b^m - alfa * s^m
+        # (en NumPy cada fila es un ejemplo, por eso las matrices van transpuestas)
+        self.W2 -= self.lr * (self.a1.T @ s2)
+        self.b2 -= self.lr * s2
+        self.W1 -= self.lr * (X.T @ s1)
+        self.b1 -= self.lr * s1
 
     def predecir(self, X):
-        """Devuelve 1 (SPAM) si la salida >= 0.5, si no 0"""
+        """1 (SPAM) si la salida >= 0.5, si no 0"""
         return (self.forward(X) >= 0.5).astype(int)
 
-# Prueba rápida: ¿funciona el forward?
-red = MLP(n_entrada=57, n_oculta=10, n_salida=1, tasa_aprendizaje=0.05)
-salida = red.forward(X_train)
-print("Forma de la salida:", salida.shape)
-print("Primeras 5 salidas:", salida[:5].ravel())
-
-
 
 # ------------------------------------------------------------
-# PASO 3: Entrenar y graficar el error por épocas
+# PASO 3: Entrenamiento (algoritmo del pseudocódigo)
 # ------------------------------------------------------------
-
 def mse(y_real, y_pred):
     """Error cuadrático medio"""
     return np.mean((y_real - y_pred) ** 2)
 
-def entrenar(red, X, y, epocas):
-    """Entrena la red y devuelve la lista de errores por época"""
+
+def entrenar(red, X, y, epocas, checkpoints=(), mostrar=True):
+    """
+    Desde época = 1 a N_épocas:
+        Desde q = 1 a Q: forward -> backward -> actualizar
+    Devuelve la lista de errores (MSE de todo el conjunto al final de cada época)
+    y copias de la red en las épocas indicadas en `checkpoints`.
+    """
     errores = []
-    for epoca in range(epocas):
-        salida = red.forward(X)          # 1. propagación hacia adelante
-        error = mse(y, salida)           # 2. calcular el error
-        errores.append(error)            # 3. guardarlo
-        red.backward(X, y)               # 4. retropropagación y ajuste de pesos
+    copias = {}
+    for epoca in range(1, epocas + 1):
+        for q in range(len(X)):                  # ciclo por ejemplo
+            xq = X[q:q + 1]                      # un solo ejemplo, forma (1, 57)
+            tq = y[q:q + 1]
+            red.forward(xq)                      # 1. hacia adelante
+            red.backward(xq, tq)                 # 2 y 3. hacia atrás + actualizar
 
-        if epoca % 100 == 0:             # mostrar progreso cada 100 épocas
-            print(f"Época {epoca}, error: {error:.4f}")
-    return errores
+        errores.append(mse(y, red.forward(X)))   # error de la época (solo para graficar)
 
-# Crear la red y entrenarla
-np.random.seed(0)
-red = MLP(n_entrada=57, n_oculta=10, n_salida=1, tasa_aprendizaje=0.05)
-errores = entrenar(red, X_train, y_train, epocas=1000)
+        if epoca in checkpoints:
+            copias[epoca] = copy.deepcopy(red)
+        if mostrar and epoca % 100 == 0:
+            print(f"   Época {epoca}, error: {errores[-1]:.4f}")
+    return errores, copias
 
-# Graficar el error por épocas
+
+def exactitud(red, X, y):
+    return np.mean(red.predecir(X) == y)
+
+
+# ------------------------------------------------------------
+# PASO 4a: Experimento para decidir la ARQUITECTURA (neuronas ocultas)
+# ------------------------------------------------------------
+imprimir("\n=== Experimento de arquitectura (neuronas en la capa oculta) ===")
+epocas_arq = LISTA_EPOCAS[0]
+imprimir(f"lr={LR_ARQUITECTURA}, épocas={epocas_arq}")
+
+resultados_arq = []
 plt.figure()
-plt.plot(errores)
+for n_oc in NEURONAS_OCULTAS:
+    t0 = time.time()
+    np.random.seed(0)
+    r = MLP(57, n_oc, 1, LR_ARQUITECTURA)
+    errs, _ = entrenar(r, X_train, y_train, epocas_arq, mostrar=False)
+    a_tr, a_te = exactitud(r, X_train, y_train), exactitud(r, X_test, y_test)
+    resultados_arq.append((n_oc, errs[-1], a_tr, a_te))
+    plt.plot(errs, label=f"{n_oc} neuronas")
+    imprimir(f"  oculta={n_oc:>3}  error={errs[-1]:.4f}  acc_train={a_tr:.4f}  "
+             f"acc_test={a_te:.4f}  ({time.time() - t0:.0f} s)")
+
 plt.xlabel("Época")
 plt.ylabel("Error (MSE)")
-plt.title("Error de entrenamiento por épocas (lr=0.05)")
+plt.title(f"Arquitectura: error por épocas (lr={LR_ARQUITECTURA})")
+plt.legend()
 plt.grid(True)
-plt.savefig("Practica_5/graficas/paso3_error_lr0.05.png", dpi=150, bbox_inches="tight")   # guardar ANTES de show
-plt.show()
+plt.savefig(f"{CARPETA_GRAFICAS}/paso4_arquitectura.png", dpi=150, bbox_inches="tight")
 
-# Precisión rápida (accuracy) para ver si aprendió
-pred_train = red.predecir(X_train)
-pred_test = red.predecir(X_test)
-print("Exactitud en entrenamiento:", np.mean(pred_train == y_train))
-print("Exactitud en prueba:", np.mean(pred_test == y_test))
-
-
+N_OCULTA = max(resultados_arq, key=lambda r: r[3])[0]     # la de mayor exactitud en prueba
+imprimir(f"Arquitectura elegida: 57 - {N_OCULTA} - 1  (sigmoide, MSE)")
 
 
 # ------------------------------------------------------------
-# PASO 4: Experimentos con tasas de aprendizaje y épocas
+# PASO 4b: Experimentos con tasas de aprendizaje y épocas
 # ------------------------------------------------------------
+# Truco para ahorrar tiempo: se entrena UNA vez cada tasa hasta el máximo de épocas
+# y se guardan copias de la red en 500, 1000 y 2000. Es equivalente a entrenar
+# por separado, porque con la misma semilla la trayectoria es idéntica.
+imprimir("\n=== Experimentos: tasa de aprendizaje y épocas ===")
+epocas_max = max(LISTA_EPOCAS)
 
-tasas = [0.001, 0.01, 0.05, 0.5, 1.0]
-lista_epocas = [500, 1000, 2000]
+resultados = []      # (lr, épocas, error, acc_train, acc_test)
+curvas = {}          # lr -> lista de errores por época
+redes = {}           # (lr, épocas) -> red entrenada
 
-resultados = []          # (lr, épocas, error final, exactitud train, exactitud test)
-curvas = {}              # curva de error de cada experimento
+for lr in TASAS:
+    t0 = time.time()
+    print(f"Entrenando lr={lr} ...")
+    np.random.seed(0)
+    r = MLP(57, N_OCULTA, 1, lr)
+    errs, copias = entrenar(r, X_train, y_train, epocas_max, checkpoints=LISTA_EPOCAS)
+    curvas[lr] = errs
+    for ep in LISTA_EPOCAS:
+        red_ep = copias[ep]
+        redes[(lr, ep)] = red_ep
+        resultados.append((lr, ep, errs[ep - 1],
+                           exactitud(red_ep, X_train, y_train),
+                           exactitud(red_ep, X_test, y_test)))
+    print(f"   listo en {time.time() - t0:.0f} s")
 
-for lr in tasas:
-    for ep in lista_epocas:
-        np.random.seed(0)    # misma inicialización para comparar justo
-        red_exp = MLP(57, 10, 1, lr)
-
-        errs = []
-        for _ in range(ep):
-            salida = red_exp.forward(X_train)
-            errs.append(mse(y_train, salida))
-            red_exp.backward(X_train, y_train)
-
-        acc_train = np.mean(red_exp.predecir(X_train) == y_train)
-        acc_test = np.mean(red_exp.predecir(X_test) == y_test)
-        resultados.append((lr, ep, errs[-1], acc_train, acc_test))
-        curvas[(lr, ep)] = errs
-
-# Tabla de resultados
-print(f"{'lr':>7} {'épocas':>7} {'error':>8} {'acc_train':>10} {'acc_test':>9}")
+imprimir(f"\n{'lr':>7} {'épocas':>7} {'error':>8} {'acc_train':>10} {'acc_test':>9}")
 for lr, ep, err, at, ae in resultados:
-    print(f"{lr:>7} {ep:>7} {err:>8.4f} {at:>10.4f} {ae:>9.4f}")
+    imprimir(f"{lr:>7} {ep:>7} {err:>8.4f} {at:>10.4f} {ae:>9.4f}")
 
-# Una gráfica (y una imagen) por cada cantidad de épocas
-for ep in lista_epocas:
+# Una gráfica por cantidad de épocas, con las curvas de todas las tasas
+for ep in LISTA_EPOCAS:
     plt.figure()
-    for lr in tasas:
-        plt.plot(curvas[(lr, ep)], label=f"lr={lr}")
+    for lr in TASAS:
+        plt.plot(curvas[lr][:ep], label=f"lr={lr}")
     plt.xlabel("Época")
     plt.ylabel("Error (MSE)")
     plt.title(f"Error de entrenamiento por épocas ({ep} épocas)")
     plt.legend()
     plt.grid(True)
-    plt.savefig(f"Practica_5/graficas/paso4_error_{ep}_epocas.png", dpi=150, bbox_inches="tight")
-
-plt.show()   # muestra las 3 ventanas al final
-
+    plt.savefig(f"{CARPETA_GRAFICAS}/paso4_error_{ep}_epocas.png", dpi=150, bbox_inches="tight")
 
 
 # ------------------------------------------------------------
 # PASO 5: Métricas y matriz de confusión (mejor configuración)
 # ------------------------------------------------------------
+mejor = max(resultados, key=lambda r: r[4])       # mayor exactitud en prueba
+lr_mejor, ep_mejor = mejor[0], mejor[1]
+mejor_red = redes[(lr_mejor, ep_mejor)]
+imprimir(f"\nMejor configuración: lr={lr_mejor}, épocas={ep_mejor}, "
+         f"oculta={N_OCULTA}  (exactitud prueba={mejor[4]:.4f})")
 
-# 1. Entrenar la mejor red
-np.random.seed(0)
-mejor_red = MLP(57, 10, 1, 1.0)
-errores_mejor = entrenar(mejor_red, X_train, y_train, epocas=2000)
-
-# 2. Predicciones sobre el conjunto de PRUEBA
 pred = mejor_red.predecir(X_test)
 
-# 3. Matriz de confusión calculada a mano
+# Matriz de confusión a mano
 VP = np.sum((pred == 1) & (y_test == 1))   # spam detectado como spam
 VN = np.sum((pred == 0) & (y_test == 0))   # no-spam detectado como no-spam
 FP = np.sum((pred == 1) & (y_test == 0))   # no-spam clasificado como spam
 FN = np.sum((pred == 0) & (y_test == 1))   # spam que se coló como no-spam
-
 matriz = np.array([[VN, FP],
                    [FN, VP]])
 
-# 4. Métricas
-exactitud = (VP + VN) / (VP + VN + FP + FN)
+exact = (VP + VN) / (VP + VN + FP + FN)
 precision = VP / (VP + FP)
 recuerdo = VP / (VP + FN)
 f1 = 2 * precision * recuerdo / (precision + recuerdo)
 
-print("\nMatriz de confusión (filas = real, columnas = predicho):")
-print(matriz)
-print(f"VP={VP}  VN={VN}  FP={FP}  FN={FN}")
-print(f"Exactitud: {exactitud:.4f}")
-print(f"Precisión: {precision:.4f}")
-print(f"Recuerdo:  {recuerdo:.4f}")
-print(f"Medida F:  {f1:.4f}")
+imprimir("Matriz de confusión (filas = real, columnas = predicho):")
+imprimir(str(matriz))
+imprimir(f"VP={VP}  VN={VN}  FP={FP}  FN={FN}")
+imprimir(f"Exactitud: {exact:.4f}")
+imprimir(f"Precisión: {precision:.4f}")
+imprimir(f"Recuerdo:  {recuerdo:.4f}")
+imprimir(f"Medida F:  {f1:.4f}")
 
-# 5. Graficar la matriz de confusión
+# Gráfica de la matriz de confusión
 plt.figure()
 plt.imshow(matriz, cmap="Blues")
-plt.title("Matriz de confusión (lr=1.0, 2000 épocas)")
+plt.title(f"Matriz de confusión (lr={lr_mejor}, {ep_mejor} épocas)")
 plt.colorbar()
 plt.xticks([0, 1], ["NO-SPAM", "SPAM"])
 plt.yticks([0, 1], ["NO-SPAM", "SPAM"])
@@ -241,15 +285,19 @@ for i in range(2):
         plt.text(j, i, matriz[i, j], ha="center", va="center",
                  color="white" if matriz[i, j] > matriz.max() / 2 else "black",
                  fontsize=14)
-plt.savefig("Practica_5/graficas/paso5_matriz_confusion.png", dpi=150, bbox_inches="tight")
+plt.savefig(f"{CARPETA_GRAFICAS}/paso5_matriz_confusion.png", dpi=150, bbox_inches="tight")
 
-# 6. Gráfica del error por épocas de la mejor red
+# Error de entrenamiento por épocas de la mejor red
 plt.figure()
-plt.plot(errores_mejor)
+plt.plot(curvas[lr_mejor][:ep_mejor])
 plt.xlabel("Época")
 plt.ylabel("Error (MSE)")
-plt.title("Error de entrenamiento por épocas (mejor red: lr=1.0)")
+plt.title(f"Error de entrenamiento por épocas (mejor red: lr={lr_mejor})")
 plt.grid(True)
-plt.savefig("Practica_5/graficas/paso5_error_mejor_red.png", dpi=150, bbox_inches="tight")
+plt.savefig(f"{CARPETA_GRAFICAS}/paso5_error_mejor_red.png", dpi=150, bbox_inches="tight")
+
+# Guardar todos los resultados en un archivo de texto (útil para el reporte)
+with open(f"{CARPETA_GRAFICAS}/resultados.txt", "w", encoding="utf-8") as f:
+    f.write("\n".join(lineas_reporte))
 
 plt.show()

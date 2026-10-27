@@ -1,0 +1,35 @@
+Forma de X: (4601, 57)
+Forma de y: (4601, 1)
+Porcentaje de SPAM: 39.40 %
+Entrenamiento: (3680, 57)
+Prueba: (921, 57)
+
+=== Experimento de arquitectura (neuronas en la capa oculta) ===
+lr=0.05, épocas=500
+  oculta=  5  error=0.0208  acc_train=0.9772  acc_test=0.9392  (63 s)
+  oculta= 10  error=0.0120  acc_train=0.9883  acc_test=0.9349  (129 s)
+  oculta= 20  error=0.0125  acc_train=0.9878  acc_test=0.9349  (47 s)
+Arquitectura elegida: 57 - 5 - 1  (sigmoide, MSE)
+
+=== Experimentos: tasa de aprendizaje y épocas ===
+
+     lr  épocas    error  acc_train  acc_test
+  0.001     500   0.0451     0.9470    0.9305
+  0.001    1000   0.0382     0.9546    0.9359
+  0.001    2000   0.0325     0.9633    0.9414
+   0.01     500   0.0270     0.9728    0.9414
+   0.01    1000   0.0229     0.9772    0.9457
+   0.01    2000   0.0195     0.9802    0.9414
+   0.05     500   0.0208     0.9772    0.9392
+   0.05    1000   0.0181     0.9821    0.9381
+   0.05    2000   0.0165     0.9832    0.9327
+
+Mejor configuración: lr=0.01, épocas=1000, oculta=5  (exactitud prueba=0.9457)
+Matriz de confusión (filas = real, columnas = predicho):
+[[542  20]
+ [ 30 329]]
+VP=329  VN=542  FP=20  FN=30
+Exactitud: 0.9457
+Precisión: 0.9427
+Recuerdo:  0.9164
+Medida F:  0.9294
