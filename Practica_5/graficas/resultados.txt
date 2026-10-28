@@ -6,9 +6,9 @@ Prueba: (921, 57)
 
 === Experimento de arquitectura (neuronas en la capa oculta) ===
 lr=0.05, épocas=500
-  oculta=  5  error=0.0208  acc_train=0.9772  acc_test=0.9392  (63 s)
-  oculta= 10  error=0.0120  acc_train=0.9883  acc_test=0.9349  (129 s)
-  oculta= 20  error=0.0125  acc_train=0.9878  acc_test=0.9349  (47 s)
+  oculta=  5  error=0.0208  acc_train=0.9772  acc_test=0.9392  (112 s)
+  oculta= 10  error=0.0120  acc_train=0.9883  acc_test=0.9349  (63 s)
+  oculta= 20  error=0.0125  acc_train=0.9878  acc_test=0.9349  (63 s)
 Arquitectura elegida: 57 - 5 - 1  (sigmoide, MSE)
 
 === Experimentos: tasa de aprendizaje y épocas ===
