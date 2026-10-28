@@ -1,142 +1,142 @@
-# copy permite guardar una copia completa de la red en ciertos puntos del entrenamiento.
+# copy permite guardar una copia completa de la red en ciertos puntos del entrenamiento
 import copy
-# os permite crear carpetas y trabajar con rutas de archivos.
+# os permite crear carpetas y trabajar con rutas de archivos
 import os
-# time sirve para medir cuánto tarda cada experimento.
+# time sirve para medir cuánto tarda cada experimento
 import time
 
-# NumPy se usa para trabajar con matrices y hacer los cálculos de la red neuronal.
+# NumPy se usa para trabajar con matrices y hacer los cálculos de la red neuronal
 import numpy as np
-# Matplotlib se usa para dibujar y guardar las gráficas de resultados.
+# Matplotlib se usa para dibujar y guardar las gráficas de resultados
 import matplotlib.pyplot as plt
 
 # ------------------------------------------------------------
 # CONFIGURACIÓN
 # ------------------------------------------------------------
-# Ruta del archivo que contiene los datos de correos y sus características.
+# Ruta del archivo que contiene los datos de correos y sus características
 RUTA_DATOS = "Practica_5/spambase/spambase.data"
-# Carpeta donde se guardarán las gráficas y el archivo de resultados.
+# Carpeta donde se guardarán las gráficas y el archivo de resultados
 CARPETA_GRAFICAS = "Practica_5/graficas"
-# Crea la carpeta si todavía no existe; exist_ok=True evita un error si ya existe.
+# Crea la carpeta si todavía no existe; exist_ok=True evita un error si ya existe
 os.makedirs(CARPETA_GRAFICAS, exist_ok=True)
 
-# Entrenar por ejemplo es lento (3680 actualizaciones por época).
-# Pon True para una prueba rápida del código; False para los experimentos reales.
-# False ejecuta los experimentos completos que pide la práctica.
+# Entrenar por ejemplo es lento (3680 actualizaciones por época)
+# Pon True para una prueba rápida del código; False para los experimentos reales
+# False ejecuta los experimentos completos que pide la práctica
 MODO_RAPIDO = False
 
-# Si el modo rápido está activado, se usan menos épocas para probar el programa.
+# Si el modo rápido está activado, se usan menos épocas para probar el programa
 if MODO_RAPIDO:
-    # Lista corta de épocas para una ejecución de prueba.
+    # Lista corta de épocas para una ejecución de prueba
     LISTA_EPOCAS = [50, 100, 200]
-# Si no se usa el modo rápido, se realizan los experimentos completos.
+# Si no se usa el modo rápido, se realizan los experimentos completos
 else:
-    # Estas son las cantidades de épocas solicitadas en la práctica.
+    # Estas son las cantidades de épocas solicitadas en la práctica
     LISTA_EPOCAS = [500, 1000, 2000]          # lo que pide la práctica
 
-# Tasas de aprendizaje que se compararán en los experimentos.
+# Tasas de aprendizaje que se compararán en los experimentos
 TASAS = [0.001, 0.01, 0.05]                   # lo que pide la práctica
-# Cantidades de neuronas que se probarán en la capa oculta.
+# Cantidades de neuronas que se probarán en la capa oculta
 NEURONAS_OCULTAS = [5, 10, 20]                # experimento para decidir la arquitectura
-# Tasa de aprendizaje fija para comparar las arquitecturas.
+# Tasa de aprendizaje fija para comparar las arquitecturas
 LR_ARQUITECTURA = 0.05                        # tasa usada en el experimento de arquitectura
 
-# Lista donde se guardan los mensajes para escribirlos después en un archivo.
+# Lista donde se guardan los mensajes para escribirlos después en un archivo
 lineas_reporte = []                           # aquí guardamos lo que se imprime, para el reporte
 
 
-# Función auxiliar: muestra mensajes en pantalla y los guarda para el reporte.
+# Función auxiliar: muestra mensajes en pantalla y los guarda para el reporte
 def imprimir(texto=""):
     """Imprime en pantalla y lo guarda para resultados.txt"""
     # Muestra el mensaje en la terminal.
     print(texto)
-    # Agrega el mensaje a la lista que se escribirá en resultados.txt.
+    # Agrega el mensaje a la lista que se escribirá en resultados.txt
     lineas_reporte.append(texto)
 
 
 # ------------------------------------------------------------
-# PASO 1 del pseudocódigo: cargar y preparar los ejemplos de entrenamiento.
+# PASO 1 del pseudocódigo: cargar y preparar los ejemplos de entrenamiento
 # PASO 1: Cargar y preparar los datos
 # ------------------------------------------------------------
-# Lee el archivo separado por comas y convierte sus valores en una matriz numérica.
+# Lee el archivo separado por comas y convierte sus valores en una matriz numérica
 datos = np.loadtxt(RUTA_DATOS, delimiter=",")
 
-# X contiene las primeras 57 columnas, que son las características de cada correo.
+# X contiene las primeras 57 columnas, que son las características de cada correo
 X = datos[:, :57]                      # 57 características (columnas 0-56)
-# y contiene la etiqueta de cada correo: 1 significa SPAM y 0 significa NO-SPAM.
+# y contiene la etiqueta de cada correo: 1 significa SPAM y 0 significa NO-SPAM
 y = datos[:, 57].reshape(-1, 1)        # etiqueta: 1 = SPAM, 0 = NO-SPAM
 
-# Muestra cuántas filas y columnas tiene la matriz de características.
+# Muestra cuántas filas y columnas tiene la matriz de características
 imprimir(f"Forma de X: {X.shape}")
-# Muestra la forma de las etiquetas; normalmente hay una etiqueta por correo.
+# Muestra la forma de las etiquetas; normalmente hay una etiqueta por correo
 imprimir(f"Forma de y: {y.shape}")
-# Calcula qué porcentaje de los correos cargados están etiquetados como SPAM.
+# Calcula qué porcentaje de los correos cargados están etiquetados como SPAM
 imprimir(f"Porcentaje de SPAM: {y.mean() * 100:.2f} %")
 
 # Mezclar (semilla fija para repetir resultados)
-# Fija la semilla para que la mezcla aleatoria pueda repetirse en otra ejecución.
+# Fija la semilla para que la mezcla aleatoria pueda repetirse en otra ejecución
 np.random.seed(42)
-# Genera un orden aleatorio de las posiciones de los correos.
+# Genera un orden aleatorio de las posiciones de los correos
 indices = np.random.permutation(len(X))
-# Reordena las características con ese orden.
+# Reordena las características con ese orden
 X = X[indices]
-# Reordena las etiquetas con exactamente el mismo orden para no separarlas de sus correos.
+# Reordena las etiquetas con exactamente el mismo orden para no separarlas de sus correos
 y = y[indices]
 
 # 80% entrenamiento, 20% prueba
-# Calcula el punto donde se separará el 80 % de los datos para entrenamiento.
+# Calcula el punto donde se separará el 80 % de los datos para entrenamiento
 corte = int(0.8 * len(X))
-# Guarda el 80 % inicial en entrenamiento y el 20 % restante en prueba.
+# Guarda el 80 % inicial en entrenamiento y el 20 % restante en prueba
 X_train, X_test = X[:corte], X[corte:]
-# Separa las etiquetas usando el mismo corte que las características.
+# Separa las etiquetas usando el mismo corte que las características
 y_train, y_test = y[:corte], y[corte:]
 
 # Normalizar con media y desviación del ENTRENAMIENTO
-# Calcula el promedio de cada característica usando solo los datos de entrenamiento.
+# Calcula el promedio de cada característica usando solo los datos de entrenamiento
 media = X_train.mean(axis=0)
-# Calcula la desviación estándar de cada característica de entrenamiento.
+# Calcula la desviación estándar de cada característica de entrenamiento
 desv = X_train.std(axis=0)
-# Evita dividir entre cero si alguna característica tiene desviación igual a cero.
+# Evita dividir entre cero si alguna característica tiene desviación igual a cero
 desv[desv == 0] = 1
-# Normaliza los datos de entrenamiento usando promedio y desviación estándar.
+# Normaliza los datos de entrenamiento usando promedio y desviación estándar
 X_train = (X_train - media) / desv
-# Normaliza los datos de prueba con los valores calculados en entrenamiento.
+# Normaliza los datos de prueba con los valores calculados en entrenamiento
 X_test = (X_test - media) / desv
 
-# Informa el tamaño del conjunto que se usará para aprender.
+# Informa el tamaño del conjunto que se usará para aprender
 imprimir(f"Entrenamiento: {X_train.shape}")
-# Informa el tamaño del conjunto reservado para comprobar el rendimiento.
+# Informa el tamaño del conjunto reservado para comprobar el rendimiento
 imprimir(f"Prueba: {X_test.shape}")
 
 
 # ------------------------------------------------------------
-# PASO 2 del pseudocódigo: construir la red multicapa con entrada, capa oculta y salida.
+# PASO 2 del pseudocódigo: construir la red multicapa con entrada, capa oculta y salida
 # PASO 2: Implementar el MLP (57 entradas -> capa oculta -> 1 salida)
 # ------------------------------------------------------------
-# Define la función de activación sigmoide, que transforma valores a un rango entre 0 y 1.
+# Define la función de activación sigmoide, que transforma valores a un rango entre 0 y 1
 def sigmoide(z):
-    # Aplica la fórmula de la sigmoide a cada valor de z.
+    # Aplica la fórmula de la sigmoide a cada valor de z
     return 1 / (1 + np.exp(-z))
 
 
-# Define la clase que representa la red neuronal MLP.
+# Define la clase que representa la red neuronal MLP
 class MLP:
-    # El constructor recibe el número de entradas, neuronas ocultas, salidas y la tasa de aprendizaje.
+    # El constructor recibe el número de entradas, neuronas ocultas, salidas y la tasa de aprendizaje
     def __init__(self, n_entrada, n_oculta, n_salida, tasa_aprendizaje):
-        # Guarda alfa, que indica qué tan grandes serán los cambios durante el aprendizaje.
+        # Guarda alfa, que indica qué tan grandes serán los cambios durante el aprendizaje
         self.lr = tasa_aprendizaje                                   # alfa
-        # Se inicializan al azar los pesos W y en cero los sesgos b.
+        # Se inicializan al azar los pesos W y en cero los sesgos b
         # Inicialización aleatoria de W y b
-        # W1 conecta las 57 entradas con las neuronas de la capa oculta.
+        # W1 conecta las 57 entradas con las neuronas de la capa oculta
         self.W1 = np.random.randn(n_entrada, n_oculta) * 0.1
-        # b1 es el sesgo de cada neurona oculta; empieza en cero.
+        # b1 es el sesgo de cada neurona oculta; empieza en cero
         self.b1 = np.zeros((1, n_oculta))
-        # W2 conecta las neuronas ocultas con la neurona de salida.
+        # W2 conecta las neuronas ocultas con la neurona de salida
         self.W2 = np.random.randn(n_oculta, n_salida) * 0.1
-        # b2 es el sesgo de la capa de salida; empieza en cero.
+        # b2 es el sesgo de la capa de salida; empieza en cero
         self.b2 = np.zeros((1, n_salida))
 
-    # PASO 1 del pseudocódigo: propagación hacia adelante por las capas de la red.
+    # PASO 1 del pseudocódigo: propagación hacia adelante por las capas de la red
     def forward(self, X):
         """1. Propagar hacia adelante: a^m = f^m(W^m a^(m-1) + b^m)"""
         # Calcula las activaciones de la capa oculta.
