@@ -1,15 +1,3 @@
-"""
-Práctica 5: Clasificación de correo SPAM con un Perceptrón Multicapa (MLP) desde cero.
-- Implementado solo con NumPy (Matplotlib únicamente para las gráficas).
-- Retropropagación con descenso de gradiente por EJEMPLO (como el pseudocódigo del curso):
-      Desde época = 1 a N_épocas:
-          Desde q = 1 a Q:
-              1. Propagar hacia adelante
-              2. Propagar hacia atrás (sensibilidades)
-              3. Actualizar W y b
-- Activación: sigmoide. Pérdida: error cuadrático medio (MSE). Salida: 1 neurona.
-"""
-
 import copy
 import os
 import time
