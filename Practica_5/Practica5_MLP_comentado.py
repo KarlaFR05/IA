@@ -20,8 +20,7 @@ CARPETA_GRAFICAS = "Practica_5/graficas"
 # Crea la carpeta si todavía no existe; exist_ok=True evita un error si ya existe
 os.makedirs(CARPETA_GRAFICAS, exist_ok=True)
 
-# Entrenar por ejemplo es lento (3680 actualizaciones por época)
-# Pon True para una prueba rápida del código; False para los experimentos reales
+# True para una prueba rápida del código; False para los experimentos reales
 # False ejecuta los experimentos completos que pide la práctica
 MODO_RAPIDO = False
 
@@ -83,29 +82,31 @@ X = X[indices]
 # Reordena las etiquetas con exactamente el mismo orden para no separarlas de sus correos
 y = y[indices]
 
-# 80% entrenamiento, 20% prueba
-# Calcula el punto donde se separará el 80 % de los datos para entrenamiento
-corte = int(0.8 * len(X))
-# Guarda el 80 % inicial en entrenamiento y el 20 % restante en prueba
-X_train, X_test = X[:corte], X[corte:]
-# Separa las etiquetas usando el mismo corte que las características
-y_train, y_test = y[:corte], y[corte:]
+# Separar los datos en entrenamiento, validación y prueba.
+# Entrenamiento: 60 %, validación: 20 %, prueba: 20 %.
+# Validación sirve para elegir la arquitectura y los hiperparámetros;
+# prueba se reserva para la evaluación final.
+corte_train = int(0.6 * len(X))
+corte_validacion = int(0.8 * len(X))
 
-# Normalizar con media y desviación del ENTRENAMIENTO
-# Calcula el promedio de cada característica usando solo los datos de entrenamiento
+X_train = X[:corte_train]
+y_train = y[:corte_train]
+X_validacion = X[corte_train:corte_validacion]
+y_validacion = y[corte_train:corte_validacion]
+X_test = X[corte_validacion:]
+y_test = y[corte_validacion:]
+
+# Normalizar usando únicamente la media y desviación del conjunto de entrenamiento.
 media = X_train.mean(axis=0)
-# Calcula la desviación estándar de cada característica de entrenamiento
 desv = X_train.std(axis=0)
-# Evita dividir entre cero si alguna característica tiene desviación igual a cero
 desv[desv == 0] = 1
-# Normaliza los datos de entrenamiento usando promedio y desviación estándar
+
 X_train = (X_train - media) / desv
-# Normaliza los datos de prueba con los valores calculados en entrenamiento
+X_validacion = (X_validacion - media) / desv
 X_test = (X_test - media) / desv
 
-# Informa el tamaño del conjunto que se usará para aprender
 imprimir(f"Entrenamiento: {X_train.shape}")
-# Informa el tamaño del conjunto reservado para comprobar el rendimiento
+imprimir(f"Validación: {X_validacion.shape}")
 imprimir(f"Prueba: {X_test.shape}")
 
 
@@ -115,7 +116,8 @@ imprimir(f"Prueba: {X_test.shape}")
 # ------------------------------------------------------------
 # Define la función de activación sigmoide, que transforma valores a un rango entre 0 y 1
 def sigmoide(z):
-    # Aplica la fórmula de la sigmoide a cada valor de z
+    # Limita los valores para evitar desbordamientos numéricos en exp.
+    z = np.clip(z, -500, 500)
     return 1 / (1 + np.exp(-z))
 
 
@@ -125,16 +127,11 @@ class MLP:
     def __init__(self, n_entrada, n_oculta, n_salida, tasa_aprendizaje):
         # Guarda alfa, que indica qué tan grandes serán los cambios durante el aprendizaje
         self.lr = tasa_aprendizaje                                   # alfa
-        # Se inicializan al azar los pesos W y en cero los sesgos b
-        # Inicialización aleatoria de W y b
-        # W1 conecta las 57 entradas con las neuronas de la capa oculta
+        # Inicialización aleatoria de pesos y sesgos, como indica el pseudocódigo.
         self.W1 = np.random.randn(n_entrada, n_oculta) * 0.1
-        # b1 es el sesgo de cada neurona oculta; empieza en cero
-        self.b1 = np.zeros((1, n_oculta))
-        # W2 conecta las neuronas ocultas con la neurona de salida
+        self.b1 = np.random.randn(1, n_oculta) * 0.1
         self.W2 = np.random.randn(n_oculta, n_salida) * 0.1
-        # b2 es el sesgo de la capa de salida; empieza en cero
-        self.b2 = np.zeros((1, n_salida))
+        self.b2 = np.random.randn(1, n_salida) * 0.1
 
     # PASO 1 del pseudocódigo: propagación hacia adelante por las capas de la red
     def forward(self, X):
@@ -267,15 +264,16 @@ for n_oc in NEURONAS_OCULTAS:
     r = MLP(57, n_oc, 1, LR_ARQUITECTURA)
     # Entrena la red y guarda los errores por época.
     errs, _ = entrenar(r, X_train, y_train, epocas_arq, mostrar=False)
-    # Calcula la exactitud sobre entrenamiento y sobre prueba.
-    a_tr, a_te = exactitud(r, X_train, y_train), exactitud(r, X_test, y_test)
+    # Calcula la exactitud sobre entrenamiento y validación.
+    a_tr = exactitud(r, X_train, y_train)
+    a_val = exactitud(r, X_validacion, y_validacion)
     # Guarda cantidad de neuronas, error final y exactitudes obtenidas.
-    resultados_arq.append((n_oc, errs[-1], a_tr, a_te))
+    resultados_arq.append((n_oc, errs[-1], a_tr, a_val))
     # Dibuja la curva de error de esta arquitectura y le pone una etiqueta.
     plt.plot(errs, label=f"{n_oc} neuronas")
     # Muestra el error final, la exactitud y el tiempo usado en este experimento.
     imprimir(f"  oculta={n_oc:>3}  error={errs[-1]:.4f}  acc_train={a_tr:.4f}  "
-             f"acc_test={a_te:.4f}  ({time.time() - t0:.0f} s)")
+             f"acc_validacion={a_val:.4f}  ({time.time() - t0:.0f} s)")
 
 # Nombra el eje horizontal: número de época.
 plt.xlabel("Época")
@@ -290,8 +288,8 @@ plt.grid(True)
 # Guarda la gráfica de comparación de arquitecturas como imagen PNG.
 plt.savefig(f"{CARPETA_GRAFICAS}/paso4_arquitectura.png", dpi=150, bbox_inches="tight")
 
-# Elige la arquitectura que obtuvo la mayor exactitud en el conjunto de prueba.
-N_OCULTA = max(resultados_arq, key=lambda r: r[3])[0]     # la de mayor exactitud en prueba
+# Elige la arquitectura con mayor exactitud en validación.
+N_OCULTA = max(resultados_arq, key=lambda r: r[3])[0]
 # Informa la arquitectura final elegida: entradas, capa oculta y salida.
 imprimir(f"Arquitectura elegida: 57 - {N_OCULTA} - 1  (sigmoide, MSE)")
 
@@ -311,8 +309,8 @@ imprimir("\n=== Experimentos: tasa de aprendizaje y épocas ===")
 # Encuentra la mayor cantidad de épocas que se entrenará.
 epocas_max = max(LISTA_EPOCAS)
 
-# Cada resultado guarda tasa, épocas, error y exactitud en entrenamiento y prueba.
-resultados = []      # (lr, épocas, error, acc_train, acc_test)
+# Cada resultado guarda tasa, épocas, error y exactitud en entrenamiento y validación.
+resultados = []      # (lr, épocas, error, acc_train, acc_validacion)
 # Diccionario que almacena las curvas de error, una por tasa de aprendizaje.
 curvas = {}          # lr -> lista de errores por época
 # Diccionario que guarda la red correspondiente a cada tasa y número de épocas.
@@ -342,13 +340,13 @@ for lr in TASAS:
         resultados.append((lr, ep, errs[ep - 1],
                            # Añade la exactitud de la red en los datos de entrenamiento.
                            exactitud(red_ep, X_train, y_train),
-                           # Añade la exactitud de la red en los datos de prueba.
-                           exactitud(red_ep, X_test, y_test)))
+                           # Añade la exactitud de la red en los datos de validación.
+                           exactitud(red_ep, X_validacion, y_validacion)))
     # Muestra cuánto tardó en completarse el entrenamiento de esta tasa.
     print(f"   listo en {time.time() - t0:.0f} s")
 
 # Imprime los títulos de las columnas de la tabla de resultados.
-imprimir(f"\n{'lr':>7} {'épocas':>7} {'error':>8} {'acc_train':>10} {'acc_test':>9}")
+imprimir(f"\n{'lr':>7} {'épocas':>7} {'error':>8} {'acc_train':>10} {'acc_valid':>10}")
 # Recorre los resultados de todas las combinaciones de tasa y épocas.
 for lr, ep, err, at, ae in resultados:
     # Imprime cada combinación con su error y exactitudes.
@@ -382,15 +380,16 @@ for ep in LISTA_EPOCAS:
 # PASO 5: evaluar la mejor configuración con métricas y matriz de confusión.
 # PASO 5: Métricas y matriz de confusión (mejor configuración)
 # ------------------------------------------------------------
-# Elige el resultado que obtuvo mayor exactitud en el conjunto de prueba.
-mejor = max(resultados, key=lambda r: r[4])       # mayor exactitud en prueba
+# Elige la configuración con mayor exactitud en validación.
+# El conjunto de prueba se usa únicamente para la evaluación final.
+mejor = max(resultados, key=lambda r: r[4])
 # Recupera la tasa y el número de épocas de esa mejor combinación.
 lr_mejor, ep_mejor = mejor[0], mejor[1]
 # Obtiene la red entrenada que corresponde a esa configuración.
 mejor_red = redes[(lr_mejor, ep_mejor)]
-# Muestra la configuración elegida y su exactitud en prueba.
+# Muestra la configuración elegida según su exactitud en validación.
 imprimir(f"\nMejor configuración: lr={lr_mejor}, épocas={ep_mejor}, "
-         f"oculta={N_OCULTA}  (exactitud prueba={mejor[4]:.4f})")
+         f"oculta={N_OCULTA}  (exactitud validación={mejor[4]:.4f})")
 
 # Predice las etiquetas del conjunto de prueba usando la mejor red.
 pred = mejor_red.predecir(X_test)
@@ -412,11 +411,12 @@ matriz = np.array([[VN, FP],
 # Exactitud: proporción total de correos clasificados correctamente.
 exact = (VP + VN) / (VP + VN + FP + FN)
 # Precisión: de los correos predichos como SPAM, qué proporción sí era SPAM.
-precision = VP / (VP + FP)
+precision = VP / (VP + FP) if (VP + FP) > 0 else 0
 # Recuerdo: de los correos que realmente eran SPAM, qué proporción se detectó.
-recuerdo = VP / (VP + FN)
+recuerdo = VP / (VP + FN) if (VP + FN) > 0 else 0
 # Medida F1: combina precisión y recuerdo en una sola medida.
-f1 = 2 * precision * recuerdo / (precision + recuerdo)
+f1 = (2 * precision * recuerdo / (precision + recuerdo)
+      if (precision + recuerdo) > 0 else 0)
 
 # Imprime una explicación de cómo leer filas y columnas de la matriz.
 imprimir("Matriz de confusión (filas = real, columnas = predicho):")
